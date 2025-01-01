@@ -71,3 +71,4 @@ wcwidth==0.2.13
 Werkzeug==3.0.6
 wrapt==1.17.0
 zipp==3.21.0
+gunicorn

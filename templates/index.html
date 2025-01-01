@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimization Visualization</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- <link rel="stylesheet" href="/static/css/style.css"> Link to your CSS file -->
+</head>
+<body>
+    <h1>Optimization Visualization</h1>
+    <button id="run">Run Optimization</button>
+    <div id="plot" style="width: 100%; height: 600px;"></div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        document.getElementById('run').addEventListener('click', () => {
+            fetch('/optimize')
+                .then(response => response.json())
+                .then(data => {
+                    const paretoFront = data.pareto_front;
+                    const allIndividuals = data.all_individuals;
+
+                    const trace1 = {
+                        x: allIndividuals.map(ind => ind[0]),
+                        y: allIndividuals.map(ind => ind[1]),
+                        mode: 'markers',
+                        name: 'All Individuals',
+                        marker: { color: 'blue', size: 5 }
+                    };
+
+                    const trace2 = {
+                        x: paretoFront.map(ind => ind[0]),
+                        y: paretoFront.map(ind => ind[1]),
+                        mode: 'markers',
+                        name: 'Pareto Front',
+                        marker: { color: 'red', size: 10 }
+                    };
+
+                    const layout = {
+                        title: 'Optimization Visualization',
+                        xaxis: { title: 'Objective 1' },
+                        yaxis: { title: 'Objective 2' },
+                    };
+
+                    Plotly.newPlot('plot', [trace1, trace2], layout);
+                });
+        });
+    </script>
+</body>
+</html>

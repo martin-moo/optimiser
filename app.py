@@ -28,9 +28,20 @@ import traceback
 from sympy import Symbol, sympify, lambdify
 from pymoo.core.problem import ElementwiseProblem
 import re
+from flask_basicauth import BasicAuth
 
 
 app = Flask(__name__)
+
+# Configure Basic Auth
+app.config["BASIC_AUTH_USERNAME"] = "admin"  # Set your username
+app.config["BASIC_AUTH_PASSWORD"] = "geneticP@ssWord"  # Set your password
+app.config["BASIC_AUTH_FORCE"] = True  # Force authentication on all routes
+
+basic_auth = BasicAuth(app)
+
+
+
 
 # Dictionary to store benchmark problems
 BENCHMARK_PROBLEMS = {

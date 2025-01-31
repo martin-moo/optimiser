@@ -1,50 +1,1391 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Optimization Visualization</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- <link rel="stylesheet" href="/static/css/style.css"> Link to your CSS file -->
+    <title>Multi-Objective Optimization Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        .tab-results {
+            display: none;
+        }
+        
+        .tab-results.active {
+            display: block;
+        }
+        .tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .optimization-params {
+            margin-bottom: 20px;
+        }
+        #plotDiv {
+            height: 600px !important;
+            margin-top: 20px;
+        }
+        .export-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .metrics-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .metric-box {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .plots-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .plot-container {
+            flex: 1;
+            min-height: 400px;
+        }
+        .export-btn {
+            margin-top: 20px;
+        }
+        .custom-function-input {
+            font-family: monospace;
+        }
+        .algorithm-params {
+            padding: 15px;
+            margin-top: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .param-group {
+            display: none;
+        }
+        .param-group.active {
+            display: block;
+        }
+        .tooltip-icon {
+            display: inline-block;
+            margin-left: 5px;
+            color: #6c757d;
+            cursor: help;
+        }
+        .param-label {
+            display: flex;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
-    <h1>Optimization Visualization</h1>
-    <button id="run">Run Optimization</button>
-    <div id="plot" style="width: 100%; height: 600px;"></div>
+    <div class="container mt-4">
+        <h2 class="mb-4">Multi-Objective Optimization Dashboard</h2>
+        
+        <!-- Mode Selection Tabs -->
+        <ul class="nav nav-tabs" id="modeTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="benchmark-tab" data-bs-toggle="tab" href="#benchmark" role="tab">Benchmark Problems</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="custom-tab" data-bs-toggle="tab" href="#custom" role="tab">Custom Functions</a>
+            </li>
+        </ul>
 
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Benchmark Problems Tab -->
+            <div class="tab-pane fade show active" id="benchmark" role="tabpanel">
+                <div class="row optimization-params">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="algorithmSelect" class="form-label">Algorithm</label>
+                            <select class="form-select" id="algorithmSelect" onchange="showAlgorithmParams()">
+                                {% for algorithm in algorithms %}
+                                <option value="{{ algorithm }}">{{ algorithm }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="problemSelect" class="form-label">Test Problem</label>
+                            <select class="form-select" id="problemSelect">
+                                {% for problem in problems %}
+                                <option value="{{ problem }}">{{ problem }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Common Parameters -->
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="populationSize" class="form-label">Population Size</label>
+                            <input type="number" class="form-control" id="populationSize" value="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="generations" class="form-label">Number of Generations</label>
+                            <input type="number" class="form-control" id="generations" value="100">
+                        </div>
+                    </div>
+
+                    <!-- Algorithm-Specific Parameters -->
+                    <div class="col-md-12">
+
+
+                        <!-- Update the algorithm-specific parameters sections -->
+                        <div class="algorithm-params">
+                            <!-- NSGA3 Parameters -->
+                            <div id="parameterVisualization"></div>
+                            <div id="nsga3-params" class="param-group">
+                                <h5>NSGA3 Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="nsga3Partitions" class="form-label param-label">
+                                        Number of Partitions
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Controls the number of reference directions generated. Higher values create more reference directions but increase computational cost. Typical values: 8-15">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="nsga3Partitions" value="70" min="4" max="20">
+                                </div>
+                            </div>
+
+                            <!-- MOEAD Parameters -->
+                            <div id="parameterVisualization"></div>
+                            <div id="moead-params" class="param-group">
+                                <h5>MOEAD Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="moeadNeighbors" class="form-label param-label">
+                                        Number of Neighbors
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Number of weight vectors considered as neighbors. Affects the spread of solutions. Typically 10-20% of population size">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="moeadNeighbors" value="31" min="1">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="moeadProbability" class="form-label param-label">
+                                        Neighbor Mating Probability
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Probability of selecting parents from neighboring subproblems. Higher values (0.7-0.9) encourage more local search">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="moeadProbability" value="0.7" step="0.1" min="0" max="1">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="moeadDecomposition" class="form-label param-label">
+                                        Decomposition Method
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Method to decompose the multi-objective problem. Tchebicheff is most common, PBI helps with uniform spread, Weighted is simple but less effective">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <select class="form-select" id="moeadDecomposition">
+                                        <option value="tchebicheff">Tchebicheff</option>
+                                        <option value="pbi">PBI</option>
+                                        <option value="weighted">Weighted</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- RNSGA2 Parameters -->
+                            <div id="parameterVisualization"></div>
+                            <div id="rnsga2-params" class="param-group">
+                                <h5>R-NSGA2 Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="rnsga2Epsilon" class="form-label param-label">
+                                        Epsilon
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Controls the spread of solutions near reference points. Smaller values (0.001-0.1) lead to more concentrated solutions">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="rnsga2Epsilon" value="0.01" step="0.001" min="0.001">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label param-label">
+                                        Reference Points
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Desired points in objective space that guide the search. Add multiple points to search different regions">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <div id="refPointsContainer">
+                                        <div class="d-flex mb-2">
+                                            <input type="number" class="form-control me-2" placeholder="0" value="0" step="0.1">
+                                            <input type="number" class="form-control" placeholder="0" value="0" step="0.1">
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="addRefPoint()">Add Reference Point</button>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="runBenchmarkOptimization()">Run Optimization</button>
+            </div>
+
+
+
+            <!-- Custom Functions Tab (remains the same) -->
+            <div class="tab-pane fade" id="custom" role="tabpanel">
+                <div class="row optimization-params">
+                    <!-- Algorithm Selection -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="customAlgorithmSelect" class="form-label">Algorithm</label>
+                            <select class="form-select" id="customAlgorithmSelect" onchange="showCustomAlgorithmParams()">
+                                {% for algorithm in algorithms %}
+                                <option value="{{ algorithm }}">{{ algorithm }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+            
+                    <!-- Common Parameters -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="customPopulationSize" class="form-label">Population Size</label>
+                            <input type="number" class="form-control" id="customPopulationSize" value="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="customGenerations" class="form-label">Number of Generations</label>
+                            <input type="number" class="form-control" id="customGenerations" value="100">
+                        </div>
+                    </div>
+            
+                    <!-- Custom Problem Definition -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Problem Definition</h5>
+                            </div>
+                            <div class="card-body">
+
+                                <!-- Add this right before the Objective Functions section -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">Example Objective Functions:</h6>
+                                    <div class="list-group">
+                                        <div class="list-group-item">
+                                            <h6 class="mb-1">Basic Multi-Objective Problem:</h6>
+                                            <p class="mb-1">f₁(x) = x[0]**2 + x[1]**2</p>
+                                            <p class="mb-1">f₂(x) = (x[0]-1)**2 + x[1]**2</p>
+                                            <small class="text-muted">Simple convex problem with competing objectives</small>
+                                        </div>
+                                        <div class="list-group-item">
+                                            <h6 class="mb-1">Engineering Design Problem:</h6>
+                                            <p class="mb-1">f₁(x) = 2 + (x[0] - 2)**2 + (x[1] - 1)**2</p>
+                                            <p class="mb-1">f₂(x) = 9*x[0] - (x[1] - 1)**2</p>
+                                            <small class="text-muted">Represents cost and performance trade-off</small>
+                                        </div>
+                                        <div class="list-group-item">
+                                            <h6 class="mb-1">Portfolio Optimization:</h6>
+                                            <p class="mb-1">f₁(x) = -(0.6*x[0] + 0.4*x[1])</p>
+                                            <p class="mb-1">f₂(x) = x[0]**2/6 + x[1]**2/2</p>
+                                            <small class="text-muted">Maximize return (-f₁) while minimizing risk (f₂)</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Objective Functions -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">Objective Functions</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">f₁(x)</label>
+                                        <input type="text" class="form-control custom-function-input" id="objective1" 
+                                               value="x[0]**2 + x[1]**2" 
+                                               placeholder="e.g., x[0]**2 + x[1]**2">
+                                        <small class="text-muted">Use x[0], x[1] for variables</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">f₂(x)</label>
+                                        <input type="text" class="form-control custom-function-input" id="objective2" 
+                                               value="(x[0]-1)**2 + x[1]**2" 
+                                               placeholder="e.g., (x[0]-1)**2 + x[1]**2">
+                                    </div>
+                                </div>
+            
+                                <!-- Constraints -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">Constraints</h6>
+                                    <div id="constraintsContainer">
+                                        <!-- Constraints will be added here -->
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary mt-2" onclick="addConstraint()">
+                                        Add Constraint
+                                    </button>
+                                </div>
+            
+                                <!-- Variable Bounds -->
+                                <div class="mb-4">
+                                    <h6 class="mb-3">Variable Bounds</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>x₁</h6>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <label class="form-label">Lower Bound</label>
+                                                    <input type="number" class="form-control" id="x1_lower" value="-2" step="0.1">
+                                                </div>
+                                                <div class="col-6">
+                                                    <label class="form-label">Upper Bound</label>
+                                                    <input type="number" class="form-control" id="x1_upper" value="2" step="0.1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>x₂</h6>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <label class="form-label">Lower Bound</label>
+                                                    <input type="number" class="form-control" id="x2_lower" value="-2" step="0.1">
+                                                </div>
+                                                <div class="col-6">
+                                                    <label class="form-label">Upper Bound</label>
+                                                    <input type="number" class="form-control" id="x2_upper" value="2" step="0.1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add this right after the Custom Problem Definition card header -->
+                    <div class="alert alert-info mb-4">
+                        <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Important Information</h5>
+                        <hr>
+                        <ul class="mb-0">
+                            <li><strong>Minimization:</strong> All objectives are minimized by default. To maximize f(x), use -f(x) as your objective function.</li>
+                            <li><strong>Variable Access:</strong> Use x[0] for x₁ and x[1] for x₂ in your expressions.</li>
+                            <li><strong>Mathematical Operations:</strong> You can use standard Python math operations:
+                                <ul>
+                                    <li>Basic: +, -, *, /, ** (power)</li>
+                                    <li>Functions: sin, cos, exp, abs, sqrt</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+            
+                    <!-- Algorithm-specific parameters (similar to benchmark tab) -->
+                    <div class="col-12 mt-3">
+                        <div class="algorithm-params">
+                            <!-- NSGA3 Parameters -->
+                            <div id="custom-nsga3-params" class="param-group">
+                                <h5>NSGA3 Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="customNsga3Partitions" class="form-label param-label">
+                                        Number of Partitions
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Controls the number of reference directions generated">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="customNsga3Partitions" value="12" min="4" max="20">
+                                </div>
+                            </div>
+            
+                            <!-- MOEAD Parameters -->
+                            <!-- Change these IDs in the custom-moead-params div -->
+                            <div id="custom-moead-params" class="param-group">
+                                <h5>MOEAD Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="customMoeadNeighbors" class="form-label param-label">
+                                        Number of Neighbors
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Number of weight vectors considered as neighbors. Affects the spread of solutions. Typically 10-20% of population size">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="customMoeadNeighbors" value="31" min="1">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="customMoeadProbability" class="form-label param-label">
+                                        Neighbor Mating Probability
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Probability of selecting parents from neighboring subproblems. Higher values (0.7-0.9) encourage more local search">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="customMoeadProbability" value="0.7" step="0.1" min="0" max="1">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="customMoeadDecomposition" class="form-label param-label">
+                                        Decomposition Method
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Method to decompose the multi-objective problem. Tchebicheff is most common, PBI helps with uniform spread, Weighted is simple but less effective">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <select class="form-select" id="customMoeadDecomposition">
+                                        <option value="tchebicheff">Tchebicheff</option>
+                                        <option value="pbi">PBI</option>
+                                        <option value="weighted">Weighted</option>
+                                    </select>
+                                </div>
+                            </div>
+            
+                            <!-- RNSGA2 Parameters -->
+                            <div id="custom-rnsga2-params" class="param-group">
+                                <h5>R-NSGA2 Parameters</h5>
+                                <div class="mb-3">
+                                    <label for="customRnsga2Epsilon" class="form-label param-label">
+                                        Epsilon
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Controls the spread of solutions near reference points. Smaller values (0.001-0.1) lead to more concentrated solutions">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <input type="number" class="form-control" id="customRnsga2Epsilon" value="0.01" step="0.001" min="0.001">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label param-label">
+                                        Reference Points
+                                        <span class="tooltip-icon" data-bs-toggle="tooltip" 
+                                            title="Desired points in objective space that guide the search. Add multiple points to search different regions">
+                                            ℹ️
+                                        </span>
+                                    </label>
+                                    <div id="customRefPointsContainer">
+                                        <div class="d-flex mb-2">
+                                            <input type="number" class="form-control me-2" placeholder="0" value="0" step="0.1">
+                                            <input type="number" class="form-control" placeholder="0" value="0" step="0.1">
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="addCustomRefPoint()">Add Reference Point</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            
+                <button class="btn btn-primary mt-3" onclick="runCustomOptimization()">Run Optimization</button>
+            
+                <!-- Error Alert -->
+                <div class="alert alert-danger mt-3" id="customErrorAlert" style="display: none;">
+                    <span id="customErrorMessage"></span>
+                </div>
+            </div>
+
+            
+
+            <!-- Results Section -->
+            <!-- In the Results Section, replace the existing plotDiv with tab-specific divs -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div id="progress-bar" class="progress" style="display:none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                            0%
+                        </div>
+                    </div>
+                    
+                    <!-- Benchmark tab results -->
+                    <div id="benchmark-results" class="tab-results">
+                        <div id="benchmark-plotDiv"></div>
+                        
+                        <!-- Performance Metrics -->
+                        <div class="metrics-container">
+                            <h4>Performance Metrics</h4>
+                            <div id="benchmark-performanceMetrics"></div>
+                            <div class="metrics-explanation mt-3">
+                                <div class="alert alert-info">
+                                    <strong>Metrics Explanation:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li><strong>GD (Generational Distance):</strong> Measures how close the obtained solutions are to the true Pareto front. Lower values indicate better convergence.</li>
+                                        <li><strong>HV (Hypervolume):</strong> Measures both convergence and diversity of solutions. Higher values indicate better overall performance.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="export-buttons">
+                                <button class="btn btn-success" onclick="exportResults('metrics', 'benchmark')">
+                                    Export Metrics <i class="bi bi-download"></i>
+                                </button>
+                                <button class="btn btn-primary" onclick="exportResults('solutions', 'benchmark')">
+                                    Export Solutions <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- GD and HV Plots -->
+                        <div class="plots-row">
+                            <div class="plot-container">
+                                <div id="benchmark-gdPlotDiv"></div>
+                                <div id="benchmark-gdMetrics" class="metric-box"></div>
+                            </div>
+                            <div class="plot-container">
+                                <div id="benchmark-hvPlotDiv"></div>
+                                <div id="benchmark-hvMetrics" class="metric-box"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom tab results -->
+                    <div id="custom-results" class="tab-results">
+                        <div id="custom-plotDiv"></div>
+                        
+                        <!-- Performance Metrics -->
+                        <div class="metrics-container">
+                            <h4>Export Solutions</h4>
+                            <div id="custom-performanceMetrics"></div>
+                            <div class="export-buttons">
+                                <!-- <button class="btn btn-success" onclick="exportResults('metrics', 'custom')">
+                                    Export Metrics <i class="bi bi-download"></i>
+                                </button> -->
+                                <button class="btn btn-primary" onclick="exportResults('solutions', 'custom')">
+                                    Export Solutions <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-        document.getElementById('run').addEventListener('click', () => {
-            fetch('/optimize')
+        function showAlgorithmParams() {
+            // Hide all parameter groups
+            document.querySelectorAll('.param-group').forEach(group => {
+                group.classList.remove('active');
+            });
+
+            // Show parameters for selected algorithm
+            const algorithm = document.getElementById('algorithmSelect').value;
+            const paramGroup = document.getElementById(`${algorithm.toLowerCase()}-params`);
+            if (paramGroup) {
+                paramGroup.classList.add('active');
+            }
+        }
+
+        function addRefPoint() {
+            const container = document.getElementById('refPointsContainer');
+            const newPoint = document.createElement('div');
+            newPoint.className = 'd-flex mb-2';
+            newPoint.innerHTML = `
+                <input type="number" class="form-control me-2" placeholder="f1" step="0.1">
+                <input type="number" class="form-control" placeholder="f2" step="0.1">
+                <button class="btn btn-danger ms-2" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(newPoint);
+        }
+
+        function getAlgorithmParams() {
+            const algorithm = document.getElementById('algorithmSelect').value;
+            const params = {
+                population_size: parseInt(document.getElementById('populationSize').value),
+                n_gen: parseInt(document.getElementById('generations').value)
+            };
+
+            switch(algorithm) {
+                case 'NSGA3':
+                    params.n_partitions = parseInt(document.getElementById('nsga3Partitions').value);
+                    break;
+                case 'MOEAD':
+                    params.n_neighbors = parseInt(document.getElementById('moeadNeighbors').value);
+                    params.prob_neighbor_mating = parseFloat(document.getElementById('moeadProbability').value);
+                    params.decomposition = document.getElementById('moeadDecomposition').value;
+                    break;
+                case 'RNSGA2':
+                    params.epsilon = parseFloat(document.getElementById('rnsga2Epsilon').value);
+                    params.ref_points = Array.from(document.querySelectorAll('#refPointsContainer .d-flex')).map(div => {
+                        const inputs = div.querySelectorAll('input');
+                        return [parseFloat(inputs[0].value), parseFloat(inputs[1].value)];
+                    });
+                    break;
+            }
+
+            return params;
+        }
+
+        // Update runBenchmarkOptimization to use the modified plotResults
+        function runBenchmarkOptimization() {
+            const algorithm = document.getElementById('algorithmSelect').value;
+            const problem = document.getElementById('problemSelect').value;
+            const params = getAlgorithmParams();
+
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.display = 'block';
+            const progressElement = document.querySelector('#progress-bar .progress-bar');
+            progressElement.style.width = '10%';
+            progressElement.setAttribute('aria-valuenow', 10);
+            progressElement.textContent = '10%';
+
+            fetch('/optimize/benchmark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    algorithm: algorithm,
+                    problem: problem,
+                    ...params
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Error running optimization');
+                }
+            })
+            .then(data => {
+                let progress = 10;
+                const interval = setInterval(() => {
+                    progress += 10;
+                    progressElement.style.width = `${progress}%`;
+                    progressElement.setAttribute('aria-valuenow', progress);
+                    progressElement.textContent = `${progress}%`;
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        plotResults(data, algorithm, problem, false);
+                        progressBar.style.display = 'none';
+                    }
+                }, 100);
+            })
+            .catch(error => {
+                progressBar.style.display = 'none';
+                alert('Error: ' + error.message);
+            });
+        }
+
+
+        // Add this function to your existing JavaScript
+        function addDefaultConstraints() {
+            const container = document.getElementById('constraintsContainer');
+            
+            // First constraint
+            const constraint1 = document.createElement('div');
+            constraint1.className = 'mb-3 d-flex align-items-center gap-2';
+            constraint1.innerHTML = `
+                <input type="text" class="form-control custom-function-input" 
+                    value="2 * (x[0] - 0.1) * (x[0] - 0.9) / 0.18" 
+                    style="width: 60%;">
+                <select class="form-select" style="width: 100px;">
+                    <option value="<=" selected>≤</option>
+                    <option value=">=">≥</option>
+                    <option value="=">=</option>
+                </select>
+                <input type="number" class="form-control" value="0" step="0.1" style="width: 100px;">
+                <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(constraint1);
+            
+            // Second constraint
+            const constraint2 = document.createElement('div');
+            constraint2.className = 'mb-3 d-flex align-items-center gap-2';
+            constraint2.innerHTML = `
+                <input type="text" class="form-control custom-function-input" 
+                    value="-20 * (x[0] - 0.4) * (x[0] - 0.6) / 4.8" 
+                    style="width: 60%;">
+                <select class="form-select" style="width: 100px;">
+                    <option value="<=" selected>≤</option>
+                    <option value=">=">≥</option>
+                    <option value="=">=</option>
+                </select>
+                <input type="number" class="form-control" value="0" step="0.1" style="width: 100px;">
+                <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(constraint2);
+        }
+
+
+        // Modify plotResults function to handle both benchmark and custom results
+        // Update the plotResults function to handle both tabs independently
+        // Update the plotResults function
+        // Update plotResults to properly store the last optimization result
+        function plotResults(data, algorithm, problem, isCustom = false) {
+            // Store the optimization result with the correct type
+            window.lastOptimizationResult = {
+                data: data,
+                type: isCustom ? 'custom' : 'benchmark'
+            };
+            
+            // Rest of the plotResults function remains the same...
+            const benchmarkResults = document.getElementById('benchmark-results');
+            const customResults = document.getElementById('custom-results');
+            
+            if (isCustom) {
+                benchmarkResults.classList.remove('active');
+                customResults.classList.add('active');
+                plotCustomResults(data, algorithm);
+            } else {
+                customResults.classList.remove('active');
+                benchmarkResults.classList.add('active');
+                
+                if (data.F[0].length === 2) {
+                    plot2D(data, algorithm, problem);
+                } else {
+                    plot3D(data, algorithm, problem);
+                }
+                
+                plotGDMetric(data.gd_history, algorithm, problem);
+                plotHVMetric(data.hv_history, algorithm, problem);
+                displayPerformanceMetrics(data.performance_metrics, isCustom);
+            }
+        }
+
+
+        // Update plot functions to use the correct divs
+        function plotCustomResults(data, algorithm) {
+            const trace1 = {
+                x: data.F.map(point => point[0]),
+                y: data.F.map(point => point[1]),
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Optimization Results',
+                marker: {
+                    size: 8,
+                    color: 'rgb(51, 204, 204)',
+                }
+            };
+
+            const layout = {
+                title: `Custom Optimization Results (Algorithm: ${algorithm})`,
+                xaxis: { title: 'Objective 1' },
+                yaxis: { title: 'Objective 2' },
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('custom-plotDiv', [trace1], layout);
+        }
+
+
+
+        // Updated displayPerformanceMetrics function
+        function displayPerformanceMetrics(metrics, isCustom = false) {
+            const containerId = isCustom ? 'custom-performanceMetrics' : 'benchmark-performanceMetrics';
+            const container = document.getElementById(containerId);
+            
+            container.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <h5>Execution Time</h5>
+                            <p>${metrics.execution_time.toFixed(2)} seconds</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <h5>Final GD Value</h5>
+                            <p>${metrics.final_gd.toFixed(6)}</p>
+                            <small class="text-muted">Lower is better</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <h5>Final HV Value</h5>
+                            <p>${metrics.final_hv.toFixed(6)}</p>
+                            <small class="text-muted">Higher is better</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update the exportResults function to handle both metrics and solutions
+        // Update the exportResults function to handle both tabs correctly
+        function exportResults(type, tabType) {
+            // Check if we have optimization results
+            if (!window.lastOptimizationResult) {
+                alert('No optimization results available. Please run optimization first.');
+                return;
+            }
+
+            // Make sure the export type and tab type match the current context
+            if (window.lastOptimizationResult.type !== tabType) {
+                alert(`No results available for ${tabType} tab. Please run optimization first.`);
+                return;
+            }
+
+            const exportData = {
+                export_type: type,
+                result: window.lastOptimizationResult.data,
+                tab_type: tabType
+            };
+
+            fetch('/export_results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(exportData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Set filename based on export type and tab
+                let filename = '';
+                if (type === 'metrics') {
+                    filename = `${tabType}_optimization_metrics.csv`;
+                } else {
+                    filename = `${tabType}_optimization_solutions.csv`;
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error exporting results: ' + error.message);
+            });
+        }
+
+
+
+        // Updated plot2D function
+        function plot2D(data, algorithm, problem) {
+            const trace1 = {
+                x: data.F.map(point => point[0]),
+                y: data.F.map(point => point[1]),
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Optimization Results',
+                marker: {
+                    size: 8,
+                    color: 'rgb(51, 204, 204)',
+                }
+            };
+
+            const trace2 = {
+                x: data.optimal_pareto_front.map(point => point[0]),
+                y: data.optimal_pareto_front.map(point => point[1]),
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Optimal Pareto Front',
+                line: {
+                    color: 'red',
+                    width: 2
+                }
+            };
+
+            const layout = {
+                title: `Pareto Front (Algorithm: ${algorithm}, Problem: ${problem})`,
+                xaxis: {
+                    title: 'Objective 1'
+                },
+                yaxis: {
+                    title: 'Objective 2'
+                },
+                hovermode: 'closest'
+            };
+
+            // Make sure benchmark results are visible
+            document.getElementById('benchmark-results').classList.add('active');
+            document.getElementById('custom-results').classList.remove('active');
+
+            Plotly.newPlot('benchmark-plotDiv', [trace1, trace2], layout);
+        }
+
+        // Updated plot3D function
+        function plot3D(data, algorithm, problem) {
+            const trace1 = {
+                x: data.F.map(point => point[0]),
+                y: data.F.map(point => point[1]),
+                z: data.F.map(point => point[2]),
+                mode: 'markers',
+                type: 'scatter3d',
+                name: 'Optimization Results',
+                marker: {
+                    size: 4,
+                    color: 'rgb(51, 204, 204)',
+                    opacity: 0.8
+                }
+            };
+            
+            const trace2 = {
+                x: data.optimal_pareto_front.map(point => point[0]),
+                y: data.optimal_pareto_front.map(point => point[1]),
+                z: data.optimal_pareto_front.map(point => point[2]),
+                mode: 'lines',
+                type: 'scatter3d',
+                name: 'Optimal Pareto Front',
+                line: {
+                    color: 'red',
+                    width: 4
+                }
+            };
+
+            const layout = {
+                title: `Pareto Front (Algorithm: ${algorithm}, Problem: ${problem})`,
+                scene: {
+                    xaxis: { title: 'Objective 1' },
+                    yaxis: { title: 'Objective 2' },
+                    zaxis: { title: 'Objective 3' },
+                    camera: {
+                        eye: {x: 1.5, y: 1.5, z: 1.5}
+                    }
+                },
+                margin: {
+                    l: 0,
+                    r: 0,
+                    b: 0,
+                    t: 40
+                },
+                showlegend: true,
+                legend: {
+                    x: 0.7,
+                    y: 0.9
+                },
+                height: 600
+            };
+
+            // Make sure benchmark results are visible
+            document.getElementById('benchmark-results').classList.add('active');
+            document.getElementById('custom-results').classList.remove('active');
+
+            Plotly.newPlot('benchmark-plotDiv', [trace1, trace2], layout);
+        }
+
+        // Updated plotGDMetric function
+        function plotGDMetric(gdValues, algorithm, problem) {
+            const generations = Array.from({length: gdValues.length}, (_, i) => i + 1);
+            
+            const trace = {
+                x: generations,
+                y: gdValues,
+                mode: 'lines+markers',
+                type: 'scatter',
+                name: 'Generation Distance',
+                line: {
+                    color: 'rgb(219, 64, 82)',
+                    width: 2
+                },
+                marker: {
+                    size: 6,
+                    color: 'rgb(219, 64, 82)'
+                }
+            };
+
+            const layout = {
+                title: {
+                    text: `Generation Distance Over Time (${algorithm} - ${problem})`,
+                    font: {
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: 'Generation',
+                    showgrid: true,
+                    gridcolor: '#E4E4E4',
+                    zeroline: true,
+                    zerolinecolor: '#969696'
+                },
+                yaxis: {
+                    title: 'Generation Distance (GD)',
+                    showgrid: true,
+                    gridcolor: '#E4E4E4',
+                    zeroline: true,
+                    zerolinecolor: '#969696'
+                },
+                paper_bgcolor: 'white',
+                plot_bgcolor: 'white',
+                showlegend: true,
+                margin: {
+                    l: 60,
+                    r: 30,
+                    b: 60,
+                    t: 80
+                }
+            };
+
+            Plotly.newPlot('benchmark-gdPlotDiv', [trace], layout);
+        }
+
+        // Updated plotHVMetric function
+        function plotHVMetric(hvValues, algorithm, problem) {
+            const generations = Array.from({length: hvValues.length}, (_, i) => i + 1);
+            
+            const trace = {
+                x: generations,
+                y: hvValues,
+                mode: 'lines+markers',
+                type: 'scatter',
+                name: 'Hypervolume',
+                line: {
+                    color: 'rgb(219, 64, 82)',
+                    width: 2
+                },
+                marker: {
+                    size: 6,
+                    color: 'rgb(219, 64, 82)'
+                }
+            };
+
+            const layout = {
+                title: {
+                    text: `Hyper-Volume Over Time (${algorithm} - ${problem})`,
+                    font: {
+                        size: 18
+                    }
+                },
+                xaxis: {
+                    title: 'Generation',
+                    showgrid: true,
+                    gridcolor: '#E4E4E4',
+                    zeroline: true,
+                    zerolinecolor: '#969696'
+                },
+                yaxis: {
+                    title: 'Hyper-Volume (HV)',
+                    showgrid: true,
+                    gridcolor: '#E4E4E4',
+                    zeroline: true,
+                    zerolinecolor: '#969696'
+                },
+                paper_bgcolor: 'white',
+                plot_bgcolor: 'white',
+                showlegend: true,
+                margin: {
+                    l: 60,
+                    r: 30,
+                    b: 60,
+                    t: 80
+                }
+            };
+
+            Plotly.newPlot('benchmark-hvPlotDiv', [trace], layout);
+        }
+
+
+        
+        // Custom Funcs
+        // Custom optimization functionality
+        function addConstraint() {
+            
+            const algorithm = document.getElementById('customAlgorithmSelect').value;
+            if (algorithm === 'MOEAD') {
+                showCustomError('MOEA/D does not support constraints. Please choose a different algorithm to add constraints.');
+                return;
+            }
+            const container = document.getElementById('constraintsContainer');
+            const constraintDiv = document.createElement('div');
+            constraintDiv.className = 'mb-3 d-flex align-items-center gap-2';
+            constraintDiv.innerHTML = `
+                <input type="text" class="form-control custom-function-input" placeholder="e.g., x[0] + x[1]" 
+                    style="width: 60%;">
+                <select class="form-select" style="width: 100px;">
+                    <option value="<=">≤</option>
+                    <option value=">=">≥</option>
+                    <option value="=">=</option>
+                </select>
+                <input type="number" class="form-control" value="0" step="0.1" style="width: 100px;">
+                <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(constraintDiv);
+        }
+
+        function showCustomAlgorithmParams() {
+            // Hide all parameter groups
+            document.querySelectorAll('#custom .param-group').forEach(group => {
+                group.classList.remove('active');
+            });
+
+            // Show parameters for selected algorithm
+            const algorithm = document.getElementById('customAlgorithmSelect').value;
+            const paramGroup = document.getElementById(`custom-${algorithm.toLowerCase()}-params`);
+            if (paramGroup) {
+                paramGroup.classList.add('active');
+            }
+        }
+
+        function getCustomProblemData() {
+            // Collect objectives
+            const objectives = {
+                f1: document.getElementById('objective1').value,
+                f2: document.getElementById('objective2').value
+            };
+
+            // Collect constraints
+            const constraints = [];
+            document.querySelectorAll('#constraintsContainer > div').forEach(div => {
+                const inputs = div.querySelectorAll('input, select');
+                constraints.push({
+                    expression: inputs[0].value,
+                    operator: inputs[1].value,
+                    value: inputs[2].value
+                });
+            });
+
+            // Collect bounds
+            const bounds = {
+                xl: [
+                    parseFloat(document.getElementById('x1_lower').value),
+                    parseFloat(document.getElementById('x2_lower').value)
+                ],
+                xu: [
+                    parseFloat(document.getElementById('x1_upper').value),
+                    parseFloat(document.getElementById('x2_upper').value)
+                ]
+            };
+
+            return {
+                objectives,
+                constraints,
+                bounds,
+                algorithm: document.getElementById('customAlgorithmSelect').value,
+                population_size: parseInt(document.getElementById('customPopulationSize').value),
+                n_gen: parseInt(document.getElementById('customGenerations').value)
+            };
+        }
+
+        function showCustomError(message) {
+            const alert = document.getElementById('customErrorAlert');
+            const messageElement = document.getElementById('customErrorMessage');
+            messageElement.textContent = message;
+            alert.style.display = 'block';
+        }
+
+        // Add this to your existing JavaScript code in index.html, replacing the existing runCustomOptimization function
+
+        function runCustomOptimization() {
+            document.getElementById('customErrorAlert').style.display = 'none';
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.display = 'block';
+            const progressElement = document.querySelector('#progress-bar .progress-bar');
+            progressElement.style.width = '10%';
+            progressElement.setAttribute('aria-valuenow', 10);
+            progressElement.textContent = '10%';
+
+            try {
+                const data = getCustomProblemData();
+                
+                // Basic validation
+                if (!data.objectives.f1 || !data.objectives.f2) {
+                    throw new Error('Both objective functions are required');
+                }
+
+                // Add algorithm-specific parameters
+                const algorithm = document.getElementById('customAlgorithmSelect').value;
+                switch(algorithm) {
+                    case 'NSGA3':
+                        data.n_partitions = parseInt(document.getElementById('customNsga3Partitions').value);
+                        break;
+                    case 'MOEAD':
+                        data.n_neighbors = parseInt(document.getElementById('customMoeadNeighbors').value);
+                        data.prob_neighbor_mating = parseFloat(document.getElementById('customMoeadProbability').value);
+                        data.decomposition = document.getElementById('customMoeadDecomposition').value;
+                        break;
+                    case 'RNSGA2':
+                        data.epsilon = parseFloat(document.getElementById('customRnsga2Epsilon').value);
+                        data.ref_points = Array.from(document.querySelectorAll('#customRefPointsContainer .d-flex')).map(div => {
+                            const inputs = div.querySelectorAll('input');
+                            return [parseFloat(inputs[0].value), parseFloat(inputs[1].value)];
+                        });
+                        break;
+                }
+
+                fetch('/optimize/custom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
                 .then(response => response.json())
                 .then(data => {
-                    const paretoFront = data.pareto_front;
-                    const allIndividuals = data.all_individuals;
-
-                    const trace1 = {
-                        x: allIndividuals.map(ind => ind[0]),
-                        y: allIndividuals.map(ind => ind[1]),
-                        mode: 'markers',
-                        name: 'All Individuals',
-                        marker: { color: 'blue', size: 5 }
-                    };
-
-                    const trace2 = {
-                        x: paretoFront.map(ind => ind[0]),
-                        y: paretoFront.map(ind => ind[1]),
-                        mode: 'markers',
-                        name: 'Pareto Front',
-                        marker: { color: 'red', size: 10 }
-                    };
-
-                    const layout = {
-                        title: 'Optimization Visualization',
-                        xaxis: { title: 'Objective 1' },
-                        yaxis: { title: 'Objective 2' },
-                    };
-
-                    Plotly.newPlot('plot', [trace1, trace2], layout);
+                    if (data.success) {
+                        let progress = 10;
+                        const interval = setInterval(() => {
+                            progress += 10;
+                            progressElement.style.width = `${progress}%`;
+                            progressElement.setAttribute('aria-valuenow', progress);
+                            progressElement.textContent = `${progress}%`;
+                            if (progress >= 100) {
+                                clearInterval(interval);
+                                // Plot results with isCustom flag
+                                plotResults(data, algorithm, null, true);
+                                progressBar.style.display = 'none';
+                            }
+                        }, 100);
+                    } else {
+                        showCustomError(data.error || 'Optimization failed');
+                        progressBar.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    showCustomError(error.message);
+                    progressBar.style.display = 'none';
                 });
+            } catch (error) {
+                showCustomError(error.message);
+                progressBar.style.display = 'none';
+            }
+        }
+
+
+
+        // Add these functions to your existing JavaScript
+        function updateParameterVisualization() {
+            const algorithm = document.getElementById('algorithmSelect').value;
+            const container = document.getElementById('parameterVisualization');
+            
+            // Mount React component
+            const root = ReactDOM.createRoot(container);
+            root.render(
+                React.createElement(ParameterVisualization, {
+                    algorithm: algorithm,
+                    parameters: getAlgorithmParams()
+                })
+            );
+        }
+
+        // Update the showAlgorithmParams function to include visualization update
+        function showAlgorithmParams() {
+            // Previous code remains the same
+            document.querySelectorAll('.param-group').forEach(group => {
+                group.classList.remove('active');
+            });
+
+            const algorithm = document.getElementById('algorithmSelect').value;
+            const paramGroup = document.getElementById(`${algorithm.toLowerCase()}-params`);
+            if (paramGroup) {
+                paramGroup.classList.add('active');
+            }
+
+            // Add visualization update
+            updateParameterVisualization();
+        }
+
+        // Add event listeners for parameter changes
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = document.querySelectorAll('.algorithm-params input, .algorithm-params select');
+            params.forEach(param => {
+                param.addEventListener('change', updateParameterVisualization);
+            });
+        });
+
+        // Add event listeners for tab switching
+        document.addEventListener('DOMContentLoaded', function() {
+            const benchmarkTab = document.getElementById('benchmark-tab');
+            const customTab = document.getElementById('custom-tab');
+            const benchmarkResults = document.getElementById('benchmark-results');
+            const customResults = document.getElementById('custom-results');
+
+            benchmarkTab.addEventListener('shown.bs.tab', function() {
+                customResults.classList.remove('active');
+                if (window.lastOptimizationResult && window.lastOptimizationResult.type === 'benchmark') {
+                    benchmarkResults.classList.add('active');
+                }
+            });
+
+            customTab.addEventListener('shown.bs.tab', function() {
+                benchmarkResults.classList.remove('active');
+                if (window.lastOptimizationResult && window.lastOptimizationResult.type === 'custom') {
+                    customResults.classList.add('active');
+                }
+            });
+        });
+
+        // Update the HTML structure for the export buttons in both tabs
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update the export buttons section in the benchmark tab
+            const benchmarkMetricsContainer = document.querySelector('#benchmark-results .metrics-container .export-buttons');
+            if (benchmarkMetricsContainer) {
+                benchmarkMetricsContainer.innerHTML = `
+                    <button class="btn btn-success" onclick="exportResults('metrics', 'benchmark')">
+                        Export Metrics <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="exportResults('solutions', 'benchmark')">
+                        Export Solutions <i class="bi bi-download"></i>
+                    </button>
+                `;
+            }
+
+            // Update the export button in the custom tab (only solutions)
+            const customMetricsContainer = document.querySelector('#custom-results .metrics-container .export-buttons');
+            if (customMetricsContainer) {
+                customMetricsContainer.innerHTML = `
+                    <button class="btn btn-primary" onclick="exportResults('solutions', 'custom')">
+                        Export Solutions <i class="bi bi-download"></i>
+                    </button>
+                `;
+            }
+        });
+
+        // Call this when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+    const algorithm = document.getElementById('customAlgorithmSelect').value;
+    if (algorithm === 'MOEAD') {
+        // Show warning about MOEAD constraints
+        const customErrorAlert = document.getElementById('customErrorAlert');
+        const customErrorMessage = document.getElementById('customErrorMessage');
+        customErrorMessage.textContent = 'Note: MOEA/D does not support constraints. Default constraints have been disabled.';
+        customErrorAlert.classList.remove('alert-danger');
+        customErrorAlert.classList.add('alert-warning');
+        customErrorAlert.style.display = 'block';
+        
+        // Clear any existing constraints
+        const constraintsContainer = document.getElementById('constraintsContainer');
+        constraintsContainer.innerHTML = '';
+    } else {
+        // Add default constraints for other algorithms
+        addDefaultConstraints();
+    }
+    
+    // Add change listener for algorithm select
+    document.getElementById('customAlgorithmSelect').addEventListener('change', function(e) {
+        const constraintsContainer = document.getElementById('constraintsContainer');
+        const customErrorAlert = document.getElementById('customErrorAlert');
+        
+        if (e.target.value === 'MOEAD') {
+            // Clear constraints and show warning
+            constraintsContainer.innerHTML = '';
+            const customErrorMessage = document.getElementById('customErrorMessage');
+            customErrorMessage.textContent = 'Note: MOEA/D does not support constraints. Constraints have been removed.';
+            customErrorAlert.classList.remove('alert-danger');
+            customErrorAlert.classList.add('alert-warning');
+            customErrorAlert.style.display = 'block';
+        } else {
+            // Add default constraints if container is empty
+            if (constraintsContainer.children.length === 0) {
+                addDefaultConstraints();
+            }
+            // Hide any existing warning
+            customErrorAlert.style.display = 'none';
+        }
+    });
+    
+});
+
+    </script>
+    <!-- Add this script at the end of the body -->
+    <script>
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
         });
     </script>
 </body>

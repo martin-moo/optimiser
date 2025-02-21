@@ -1,0 +1,80 @@
+<!-- templates/info.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Objective Optimization Information</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Multi-Objective Optimization Information</h1>
+
+        <!-- Algorithms Section -->
+        <section class="mb-5">
+            <h2 class="mb-3">Evolutionary Algorithms</h2>
+            {% for algo_key, algo in algorithm_info.items() %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h3 class="card-title">{{ algo.name }}</h3>
+                    <p class="card-text">{{ algo.description }}</p>
+                    <h5>Key Features:</h5>
+                    <ul>
+                        {% for feature in algo.key_features %}
+                        <li>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <!-- Benchmark Problems Section -->
+        <section class="mb-5">
+            <h2 class="mb-3">Benchmark Problems</h2>
+            {% for prob_key, prob in benchmark_info.items() %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h3 class="card-title">{{ prob.name }}</h3>
+                    <p class="card-text">{{ prob.description }}</p>
+                    <h5>Characteristics:</h5>
+                    <ul>
+                        {% for char in prob.characteristics %}
+                        <li>{{ char }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+
+        <!-- Metrics Section -->
+        <section class="mb-5">
+            <h2 class="mb-3">Evaluation Metrics</h2>
+            {% for metric_name, metric in metrics_info.items() %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h3 class="card-title">{{ metric_name }}</h3>
+                    <p class="card-text">{{ metric.description }}</p>
+                    <p><strong>Interpretation:</strong> {{ metric.interpretation }}</p>
+                    {% if metric.formula %}
+                    <p><strong>Formula:</strong> {{ metric.formula }}</p>
+                    {% endif %}
+                    {% if metric.characteristics %}
+                    <h5>Characteristics:</h5>
+                    <ul>
+                        {% for char in metric.characteristics %}
+                        <li>{{ char }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

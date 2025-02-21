@@ -28,20 +28,8 @@ import traceback
 from sympy import Symbol, sympify, lambdify
 from pymoo.core.problem import ElementwiseProblem
 import re
-from flask_basicauth import BasicAuth
-
 
 app = Flask(__name__)
-
-# Configure Basic Auth
-app.config["BASIC_AUTH_USERNAME"] = "admin"  # Set your username
-app.config["BASIC_AUTH_PASSWORD"] = "geneticP@ssWord"  # Set your password
-app.config["BASIC_AUTH_FORCE"] = True  # Force authentication on all routes
-
-basic_auth = BasicAuth(app)
-
-
-
 
 # Dictionary to store benchmark problems
 BENCHMARK_PROBLEMS = {
@@ -510,6 +498,126 @@ def optimize_custom():
         print(f"Unexpected error: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+
+@app.route('/info')
+def info():
+    algorithm_info = {
+        'NSGA2': {
+            'name': 'Non-dominated Sorting Genetic Algorithm II (NSGA-II)',
+            'description': 'A popular multi-objective optimization algorithm that uses non-dominated sorting and crowding distance to maintain diversity in the population.',
+            'key_features': [
+                'Fast non-dominated sorting approach',
+                'Elitist strategy',
+                'Crowding distance for diversity preservation'
+            ]
+        },
+        'NSGA3': {
+            'name': 'Non-dominated Sorting Genetic Algorithm III (NSGA-III)',
+            'description': 'An extension of NSGA-II designed specifically for many-objective optimization problems using reference points.',
+            'key_features': [
+                'Reference point approach for diversity',
+                'Suitable for many-objective problems',
+                'Better convergence in high-dimensional objective spaces'
+            ]
+        },
+        'MOEAD': {
+            'name': 'Multi-objective Evolutionary Algorithm Based on Decomposition (MOEA/D)',
+            'description': 'Decomposes a multi-objective problem into several single-objective subproblems and optimizes them simultaneously.',
+            'key_features': [
+                'Decomposition-based approach',
+                'Neighborhood relations among subproblems',
+                'Efficient for problems with complicated Pareto sets'
+            ]
+        },
+        'RNSGA2': {
+            'name': 'Reference point-based NSGA-II (R-NSGA-II)',
+            'description': 'A variant of NSGA-II that incorporates user preferences through reference points.',
+            'key_features': [
+                'Preference-based optimization',
+                'Reference point guidance',
+                'Modified crowding distance calculation'
+            ]
+        },
+        'SPEA2': {
+            'name': 'Strength Pareto Evolutionary Algorithm 2 (SPEA2)',
+            'description': 'An elitist multi-objective evolutionary algorithm using fine-grained fitness assignment strategy.',
+            'key_features': [
+                'Improved fitness assignment',
+                'Nearest neighbor density estimation',
+                'Archive truncation method'
+            ]
+        }
+    }
+    
+    benchmark_info = {
+        'zdt1': {
+            'name': 'ZDT1',
+            'description': 'A bi-objective problem with a convex Pareto-optimal front.',
+            'characteristics': [
+                'Number of variables: n (typically 30)',
+                'Number of objectives: 2',
+                'Convex Pareto front'
+            ]
+        },
+        'zdt2': {
+            'name': 'ZDT2',
+            'description': 'A bi-objective problem with a non-convex Pareto-optimal front.',
+            'characteristics': [
+                'Number of variables: n (typically 30)',
+                'Number of objectives: 2',
+                'Non-convex Pareto front'
+            ]
+        },
+        'zdt3': {
+            'name': 'ZDT3',
+            'description': 'A bi-objective problem with a disconnected Pareto-optimal front.',
+            'characteristics': [
+                'Number of variables: n (typically 30)',
+                'Number of objectives: 2',
+                'Disconnected Pareto front'
+            ]
+        },
+        'dtlz1': {
+            'name': 'DTLZ1',
+            'description': 'A scalable problem with a linear Pareto-optimal front.',
+            'characteristics': [
+                'Scalable to any number of objectives',
+                'Linear Pareto front',
+                'Multiple local Pareto-optimal fronts'
+            ]
+        },
+        'dtlz2': {
+            'name': 'DTLZ2',
+            'description': 'A scalable problem with a spherical Pareto-optimal front.',
+            'characteristics': [
+                'Scalable to any number of objectives',
+                'Spherical Pareto front',
+                'Uniform density of solutions'
+            ]
+        }
+    }
+    
+    metrics_info = {
+        'Generational Distance (GD)': {
+            'description': 'Measures the convergence of the obtained solutions to the true Pareto front.',
+            'interpretation': 'Lower values indicate better convergence.',
+            'formula': 'GD = sqrt(sum(min_distances^2)/n), where n is the number of obtained solutions.'
+        },
+        'Hypervolume (HV)': {
+            'description': 'Measures both convergence and diversity of the obtained solutions.',
+            'interpretation': 'Higher values indicate better overall performance.',
+            'characteristics': [
+                'Reference point dependent',
+                'Scales with the number of objectives',
+                'Considers both convergence and diversity'
+            ]
+        }
+    }
+    
+    return render_template('info.html', 
+                         algorithm_info=algorithm_info,
+                         benchmark_info=benchmark_info,
+                         metrics_info=metrics_info)
 
 
 if __name__ == '__main__':
